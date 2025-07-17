@@ -2,23 +2,45 @@
   "name": "video-dubbing-system",
   "version": "1.0.0",
   "description": "Video dubbing system with SRT processing and multi-step workflow",
-  "main": "index.js",
+  "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest tests/integration",
+    "test:unit": "jest tests/unit",
+    "lint": "eslint src/ tests/",
+    "lint:fix": "eslint src/ tests/ --fix",
+    "docker:build": "docker build -t video-dubbing-system .",
+    "docker:run": "docker run -p 3000:3000 video-dubbing-system",
+    "docker:compose": "docker-compose up -d",
+    "docker:logs": "docker-compose logs -f",
+    "docker:stop": "docker-compose down",
+    "docker:clean": "docker system prune -f",
+    "production:start": "NODE_ENV=production npm start",
+    "production:build": "docker-compose build",
+    "production:deploy": "docker-compose up -d --build",
+    "production:logs": "docker-compose -f docker-compose.prod.yml logs -f",
+    "health:check": "curl -f http://localhost:3000/health || exit 1",
+    "setup:dev": "npm install && npm run test",
+    "clean": "rm -rf node_modules coverage uploads/temp/* uploads/processed/*"
   },
   "keywords": [
     "video",
     "dubbing",
     "srt",
     "tts",
-    "workflow"
+    "workflow",
+    "nodejs",
+    "express",
+    "redis",
+    "bullmq",
+    "docker"
   ],
   "author": "Sayad Ibna Azad",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "axios": "^1.10.0",
     "bull": "^4.16.5",
@@ -27,15 +49,29 @@
     "dotenv": "^17.2.0",
     "express": "^4.21.2",
     "helmet": "^8.1.0",
+    "ioredis": "^5.3.2",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
     "redis": "^5.6.0",
-    "srt-parser-2": "^1.2.3"
+    "srt-parser-2": "^1.2.3",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "eslint": "^9.31.0",
     "jest": "^30.0.4",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.3"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sayad-dot/Video-Dubbing-System.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sayad-dot/Video-Dubbing-System/issues"
+  },
+  "homepage": "https://github.com/sayad-dot/Video-Dubbing-System#readme"
 }
