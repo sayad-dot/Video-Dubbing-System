@@ -1,4 +1,5 @@
 const express = require('express');
+const apiRoutes = require('./routes/api');
 const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
@@ -21,7 +22,7 @@ app.use(httpLogger);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Static files
+// Static files (serve uploads)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Health check endpoint
@@ -33,24 +34,17 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes (will be implemented in Phase 2)
-app.use('/api', (req, res, next) => {
-  res.json({
-    message: 'API routes coming in Phase 2',
-    phase: 'Phase 1 Complete'
-  });
-});
+// Mount actual API routes for Phase 2
+app.use('/api', apiRoutes);
 
 // Error handling middleware
 app.use(errorHandler);
 
-// 404 handler
+// 404 handler (must come after all other routes)
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    error: {
-      message: 'Route not found'
-    }
+    error: { message: 'Route not found' }
   });
 });
 
