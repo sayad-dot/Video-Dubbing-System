@@ -4,6 +4,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const path = require('path');
 require('dotenv').config();
+require('./workers/extractWorker');
+require('./workers/generateWorker');
+require('./workers/mixWorker');
 
 const { logger, httpLogger } = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');

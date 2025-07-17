@@ -1,10 +1,9 @@
 const express = require('express');
 const srtController = require('../controllers/srtController');
 const { upload, validateSRTUpload, validateJobId } = require('../middleware/validation');
-
+const workflowCtrl = require('../controllers/workflowController');
 
 const router = express.Router();
-
 
 // SRT Processing Routes
 router.post('/srt/upload', 
@@ -25,5 +24,10 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Workflow endpoints
+router.post('/workflow', workflowCtrl.start);
+router.get('/workflow/:jobId/status', workflowCtrl.status);
+router.get('/workflow/:jobId/result', workflowCtrl.result);
 
 module.exports = router;

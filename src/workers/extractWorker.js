@@ -1,18 +1,25 @@
+const { Worker } = require('bullmq');
+const { connection } = require('../config/queue');
 const { logger } = require('../utils/logger');
+const srtService = require('../services/srtService');
 
-class ExtractWorker {
-  async process(job) {
-    logger.info('Extract worker processing job', { jobId: job.id });
-    
-    // Simulate SRT extraction
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return {
-      step: 'extract',
-      result: 'SRT content extracted successfully',
-      timestamp: new Date()
-    };
+const extractWorker = new Worker(
+  'workflow',
+  async (job) => {
+    if (job.name !== 'extract') return;
+
+    logger.info('⛏  [Extract] started', { jobId: job.id });
+
+    const { srtContent } = job.data;
+    const parsed = srtService.parseSRT(srtContent);
+
+    logger.info('⛏  [Extract] complete', { jobId: job.id, entries: parsed.length });
+    return { parsed };
+  },
+  { 
+    connection,
+    concurrency: 2
   }
-}
+);
 
-module.exports = new ExtractWorker();
+module.exports = extractWorker;

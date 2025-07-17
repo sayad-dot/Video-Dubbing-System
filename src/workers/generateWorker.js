@@ -1,18 +1,26 @@
+const { Worker } = require('bullmq');
+const { connection } = require('../config/queue');
 const { logger } = require('../utils/logger');
+const ttsService = require('../services/ttsService');
 
-class GenerateWorker {
-  async process(job) {
-    logger.info('Generate worker processing job', { jobId: job.id });
-    
-    // Simulate voice generation
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    return {
-      step: 'generate',
-      result: 'Voice audio generated successfully',
-      timestamp: new Date()
-    };
+const generateWorker = new Worker(
+  'workflow',
+  async (job) => {
+    if (job.name !== 'generate') return;
+
+    logger.info('🎙  [Generate] started', { jobId: job.id });
+
+    const { parsed } = job.data;
+    const text = parsed.map(e => e.text).join(' ');
+    const audioPath = await ttsService.generateAudio(text);
+
+    logger.info('🎙  [Generate] complete', { jobId: job.id, audioPath });
+    return { ...job.data, audioPath };
+  },
+  { 
+    connection,
+    concurrency: 1
   }
-}
+);
 
-module.exports = new GenerateWorker();
+module.exports = generateWorker;

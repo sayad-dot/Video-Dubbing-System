@@ -1,63 +1,45 @@
-const Job = require('../models/Job');
+const { workflowQueue } = require('../config/queue');
 const { logger } = require('../utils/logger');
+const { v4: uuid } = require('uuid');        // add once:  npm i uuid
 
 class WorkflowService {
-  constructor() {
-    this.jobs = new Map(); // In-memory storage for demo
+  /* Kick-off 3-step pipeline */
+  async startWorkflow(srtContent) {
+    const jobId = uuid();
+
+    /* 1️⃣  EXTRACT -------------------------------------------------- */
+    await workflowQueue.add(
+      'extract',
+      { jobId, srtContent },
+      {
+        jobId, removeOnComplete: true, removeOnFail: true,
+        onComplete: { name: 'generate', data: { jobId } }   // chain next step
+      }
+    );
+
+    logger.info('Workflow started', { jobId });
+    return jobId;
   }
 
-  async createJob(type, data) {
-    const job = new Job({ type, data });
-    this.jobs.set(job.id, job);
-    
-    // Start processing immediately for demo
-    this.processJob(job);
-    
-    return job;
+  /* 2️⃣  GENERATE step enqueued automatically by BullMQ */
+
+  /* 3️⃣  MIX step is triggered via onComplete option in worker */
+
+  /* Status polling */
+  async getStatus(jobId) {
+    const job = await workflowQueue.getJob(jobId);
+    if (!job) return null;
+
+    const state = await job.getState();
+    const progress = job._progress;
+    return { id: jobId, state, progress };
   }
 
-  async getJobStatus(jobId) {
-    return this.jobs.get(jobId) || null;
-  }
-
-  async getJobResult(jobId) {
-    return this.jobs.get(jobId) || null;
-  }
-
-  async processJob(job) {
-    try {
-      logger.info('Processing job', { jobId: job.id, type: job.type });
-      
-      // Simulate workflow steps
-      job.updateStatus('processing', 10);
-      await this.simulateStep('extract', job);
-      
-      job.updateStatus('processing', 50);
-      await this.simulateStep('generate', job);
-      
-      job.updateStatus('processing', 90);
-      await this.simulateStep('mix', job);
-      
-      job.setResult({
-        message: 'Job completed successfully',
-        processedAt: new Date(),
-        steps: ['extract', 'generate', 'mix']
-      });
-      
-      logger.info('Job completed', { jobId: job.id });
-    } catch (error) {
-      logger.error('Job processing failed', { jobId: job.id, error: error.message });
-      job.setError(error.message);
-    }
-  }
-
-  async simulateStep(stepName, job) {
-    logger.info(`Executing step: ${stepName}`, { jobId: job.id });
-    
-    // Simulate processing time
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    logger.info(`Step completed: ${stepName}`, { jobId: job.id });
+  /* Result polling (stored in mix step) */
+  async getResult(jobId) {
+    const jobs = await workflowQueue.getJobs(['completed']);
+    const target = jobs.find(j => j.id === jobId);
+    return target ? target.returnvalue : null;
   }
 }
 
