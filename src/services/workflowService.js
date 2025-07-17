@@ -1,19 +1,37 @@
 const { workflowQueue } = require('../config/queue');
 const { logger } = require('../utils/logger');
-const { v4: uuid } = require('uuid');        // add once:  npm i uuid
+const crypto = require('crypto');
 
 class WorkflowService {
-  /* Kick-off 3-step pipeline */
   async startWorkflow(srtContent) {
-    const jobId = uuid();
+    const jobId = crypto.randomUUID();
 
-    /* 1️⃣  EXTRACT -------------------------------------------------- */
-    await workflowQueue.add(
+    // Add extract job
+    const extractJob = await workflowQueue.add(
       'extract',
       { jobId, srtContent },
-      {
-        jobId, removeOnComplete: true, removeOnFail: true,
-        onComplete: { name: 'generate', data: { jobId } }   // chain next step
+      { jobId: `extract_${jobId}`, removeOnComplete: 5, removeOnFail: 10 }
+    );
+
+    const generateJob = await workflowQueue.add(
+      'generate',
+      { jobId },
+      { 
+        jobId: `generate_${jobId}`,
+        delay: 1000,
+        removeOnComplete: 5, 
+        removeOnFail: 10 
+      }
+    );
+
+    const mixJob = await workflowQueue.add(
+      'mix',
+      { jobId },
+      { 
+        jobId: `mix_${jobId}`,
+        delay: 3000,
+        removeOnComplete: 5, 
+        removeOnFail: 10 
       }
     );
 
@@ -21,25 +39,60 @@ class WorkflowService {
     return jobId;
   }
 
-  /* 2️⃣  GENERATE step enqueued automatically by BullMQ */
-
-  /* 3️⃣  MIX step is triggered via onComplete option in worker */
-
-  /* Status polling */
   async getStatus(jobId) {
-    const job = await workflowQueue.getJob(jobId);
-    if (!job) return null;
+    try {
+      const extractJob = await workflowQueue.getJob(`extract_${jobId}`);
+      const generateJob = await workflowQueue.getJob(`generate_${jobId}`);
+      const mixJob = await workflowQueue.getJob(`mix_${jobId}`);
 
-    const state = await job.getState();
-    const progress = job._progress;
-    return { id: jobId, state, progress };
+      const jobs = [extractJob, generateJob, mixJob].filter(Boolean);
+      
+      if (jobs.length === 0) {
+        return null;
+      }
+
+      const statuses = await Promise.all(
+        jobs.map(async (job) => ({
+          name: job.name,
+          state: await job.getState(),
+          progress: job.progress || 0
+        }))
+      );
+
+      return {
+        id: jobId,
+        steps: statuses,
+        overall: this.calculateOverallStatus(statuses)
+      };
+    } catch (error) {
+      logger.error('Error getting workflow status:', error);
+      return null;
+    }
   }
 
-  /* Result polling (stored in mix step) */
+  // ADD THIS MISSING FUNCTION
+  calculateOverallStatus(statuses) {
+    const completed = statuses.filter(s => s.state === 'completed').length;
+    const failed = statuses.filter(s => s.state === 'failed').length;
+    
+    if (failed > 0) return 'failed';
+    if (completed === statuses.length) return 'completed';
+    return 'processing';
+  }
+
   async getResult(jobId) {
-    const jobs = await workflowQueue.getJobs(['completed']);
-    const target = jobs.find(j => j.id === jobId);
-    return target ? target.returnvalue : null;
+    try {
+      const mixJob = await workflowQueue.getJob(`mix_${jobId}`);
+      if (!mixJob) return null;
+
+      const state = await mixJob.getState();
+      if (state !== 'completed') return null;
+
+      return mixJob.returnvalue;
+    } catch (error) {
+      logger.error('Error getting workflow result:', error);
+      return null;
+    }
   }
 }
 

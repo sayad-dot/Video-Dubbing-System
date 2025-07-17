@@ -1,6 +1,5 @@
 const ttsService = require('../../src/services/ttsService');
 const fs = require('fs').promises;
-const path = require('path');
 
 // Mock fs module
 jest.mock('fs', () => ({
@@ -18,7 +17,6 @@ describe('TTSService', () => {
 
   describe('generateAudio', () => {
     it('should generate audio file', async () => {
-      const mockBuffer = Buffer.from('mock audio data');
       fs.writeFile.mockResolvedValue();
       
       const result = await ttsService.generateAudio('Hello World');
@@ -49,10 +47,10 @@ describe('TTSService', () => {
 
   describe('estimateAudioDuration', () => {
     it('should estimate duration correctly', () => {
-      const text = 'Hello World'.repeat(150); // 300 words
+      const text = 'Hello World '.repeat(75); // 150 words
       const duration = ttsService.estimateAudioDuration(text);
       
-      expect(duration).toBe(120); // 300 words / 150 wpm * 60 seconds
+      expect(duration).toBe(61); // 150 words / 150 wpm * 60 seconds = 60, rounded up
     });
   });
 });

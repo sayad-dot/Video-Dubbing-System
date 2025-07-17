@@ -1,6 +1,5 @@
 const request = require('supertest');
 const app = require('../../src/app');
-const path = require('path');
 
 describe('API Integration Tests', () => {
   describe('Health Endpoints', () => {
@@ -32,7 +31,10 @@ describe('API Integration Tests', () => {
       const srtContent = `1
 00:00:01,000 --> 00:00:03,000
 Hello World
-`;
+
+2
+00:00:04,000 --> 00:00:06,000
+This is a test`;
       
       const response = await request(app)
         .post('/api/srt/upload')
@@ -41,7 +43,7 @@ Hello World
       
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('srtEntries');
-      expect(response.body.data.srtEntries).toHaveLength(1);
+      expect(response.body.data.srtEntries).toHaveLength(2);
     });
 
     it('should reject invalid SRT file', async () => {

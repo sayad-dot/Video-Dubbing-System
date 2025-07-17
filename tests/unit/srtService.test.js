@@ -38,7 +38,9 @@ This is a test`;
 00:00:01,000 --> 00:00:03,000
 Hello World
 
-`;
+2
+00:00:04,000 --> 00:00:06,000
+This is a test`;
       
       expect(srtService.validateSRT(validSRT)).toBe(true);
     });
